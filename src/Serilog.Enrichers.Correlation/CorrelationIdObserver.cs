@@ -8,7 +8,7 @@ using Microsoft.Extensions.DiagnosticAdapter;
 
 namespace Serilog.Enrichers.Correlation
 {
-   public class CorrelationIdObserver : IDiagnosticObserver
+   public class CorrelationIdObserver : IObserver<DiagnosticListener>
    {
       private readonly ICorrelationIdResolver _correlationIdResolver;
       private readonly List<IDisposable> _subscriptions = new List<IDisposable>();
