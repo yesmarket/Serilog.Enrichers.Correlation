@@ -13,14 +13,9 @@ Configure serilog is as follows;
 
 There is also a fix in this libarey for a [known issue](https://github.com/aspnet/AspNetCore/issues/5144) with ASP.NET core 2.2.0, which results in the correlation is not being set. To use the fix, do the following in your Startup.cs:
 ```
-public void ConfigureServices(IServiceCollection services)
-{
-   services.AddDiagnosticObserver<CorrelationIdObserver>();
-}
-
 public void Configure(IApplicationBuilder app, IHostingEnvironment env, IServiceProvider serviceProvider, IApplicationLifetime applicationLifetime, ILoggerFactory loggerFactory)
 {
-   serviceProvider.UseDiagnosticObserver<CorrelationIdObserver>();
+   DiagnosticListener.AllListeners.Subscribe(new CorrelationIdObserver());
 }
 ```
 
