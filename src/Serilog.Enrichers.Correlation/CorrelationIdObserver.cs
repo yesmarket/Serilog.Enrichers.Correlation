@@ -3,11 +3,8 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Net.Http;
-using System.Security.Cryptography;
-using System.Text;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DiagnosticAdapter;
-using OpenTracing.Util;
 
 namespace Serilog.Enrichers.Correlation
 {
@@ -43,22 +40,9 @@ namespace Serilog.Enrichers.Correlation
                return;
             }
 
-         Trace.CorrelationManager.ActivityId = GetCorrelationId();
+         Trace.CorrelationManager.ActivityId = new Guid();
       }
-
-      private Guid GetCorrelationId()
-      {
-         var tracer = GlobalTracer.Instance;
-         var traceId = tracer?.ActiveSpan?.Context?.TraceId;
-         if (traceId == null) return new Guid();
-         using (var md5 = MD5.Create())
-         {
-            var buffer = Encoding.Default.GetBytes(traceId);
-            var hash = md5.ComputeHash(buffer);
-            return new Guid(hash);
-         }
-      }
-
+      
       [DiagnosticName("System.Net.Http.HttpRequestOut.Start")]
       public void OnHttpRequestOutStart(HttpRequestMessage request)
       {
