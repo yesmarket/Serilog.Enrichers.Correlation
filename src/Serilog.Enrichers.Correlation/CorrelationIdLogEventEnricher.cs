@@ -1,5 +1,6 @@
 using Serilog.Core;
 using Serilog.Events;
+using System.Diagnostics;
 
 namespace Serilog.Enrichers.Correlation
 {
@@ -7,7 +8,7 @@ namespace Serilog.Enrichers.Correlation
     {
        public void Enrich(LogEvent logEvent, ILogEventPropertyFactory propertyFactory)
        {
-          logEvent.AddOrUpdateProperty(propertyFactory.CreateProperty("CorrelationId", AsyncLocal.CorrelationId.Current.Value));
+          logEvent.AddOrUpdateProperty(propertyFactory.CreateProperty("CorrelationId", Trace.CorrelationManager.ActivityId));
        }
    }
 }

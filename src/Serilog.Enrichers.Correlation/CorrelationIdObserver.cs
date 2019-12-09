@@ -3,24 +3,22 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Net.Http;
+using System.Security.Cryptography;
+using System.Text;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DiagnosticAdapter;
+using OpenTracing.Util;
 
 namespace Serilog.Enrichers.Correlation
 {
-   public class CorrelationIdObserver : IObserver<DiagnosticListener>
+   public sealed class CorrelationIdObserver : IObserver<DiagnosticListener>, IDisposable
    {
-      private readonly ICorrelationIdResolver _correlationIdResolver;
       private readonly List<IDisposable> _subscriptions = new List<IDisposable>();
-
-      public CorrelationIdObserver(ICorrelationIdResolver correlationIdResolver)
-      {
-         _correlationIdResolver = correlationIdResolver;
-      }
+      private bool _disposed;
 
       public void OnCompleted()
       {
-         _subscriptions.ForEach(x => x.Dispose());
+         Dispose(true);
          _subscriptions.Clear();
       }
 
@@ -31,14 +29,7 @@ namespace Serilog.Enrichers.Correlation
       public void OnNext(DiagnosticListener value)
       {
          if (!new[] {"Microsoft.AspNetCore", "HttpHandlerDiagnosticListener"}.Contains(value.Name)) return;
-
-         var subscription = value.SubscribeWithAdapter(this);
-         _subscriptions.Add(subscription);
-      }
-
-      [DiagnosticName("Microsoft.AspNetCore.Hosting.HttpRequestIn")]
-      public void OnHttpRequestIn()
-      {
+         _subscriptions.Add(value.SubscribeWithAdapter(this));
       }
 
       [DiagnosticName("Microsoft.AspNetCore.Hosting.HttpRequestIn.Start")]
@@ -48,23 +39,49 @@ namespace Serilog.Enrichers.Correlation
          if (headers.TryGetValue("X-Correlation-ID", out var header))
             if (Guid.TryParse(header, out var correlationId))
             {
-               AsyncLocal.CorrelationId.Current.Value = correlationId;
+               Trace.CorrelationManager.ActivityId = correlationId;
                return;
             }
 
-         AsyncLocal.CorrelationId.Current.Value = _correlationIdResolver.GetCorrelationId();
+         Trace.CorrelationManager.ActivityId = GetCorrelationId();
       }
 
-      [DiagnosticName("System.Net.Http.HttpRequestOut")]
-      public void OnHttpRequestOut()
+      private Guid GetCorrelationId()
       {
+         var tracer = GlobalTracer.Instance;
+         var traceId = tracer?.ActiveSpan?.Context?.TraceId;
+         if (traceId == null) return new Guid();
+         using (var md5 = MD5.Create())
+         {
+            var buffer = Encoding.Default.GetBytes(traceId);
+            var hash = md5.ComputeHash(buffer);
+            return new Guid(hash);
+         }
       }
 
       [DiagnosticName("System.Net.Http.HttpRequestOut.Start")]
       public void OnHttpRequestOutStart(HttpRequestMessage request)
       {
-         var correlationId = AsyncLocal.CorrelationId.Current.Value.ToString();
-         request.Headers.Add("X-Correlation-ID", correlationId);
+         request.Headers.Add("X-Correlation-ID", Trace.CorrelationManager.ActivityId.ToString());
+      }
+
+      public void Dispose()
+      {
+         Dispose(true);
+         GC.SuppressFinalize(this);
+      }
+
+      private void Dispose(bool disposing)
+      {
+         if (_disposed)
+            return;
+
+         if (disposing)
+         {
+            _subscriptions.ForEach(_ => _.Dispose());
+         }
+
+         _disposed = true;
       }
    }
 }
