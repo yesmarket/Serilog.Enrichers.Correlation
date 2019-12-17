@@ -40,7 +40,7 @@ namespace Serilog.Enrichers.Correlation
                return;
             }
 
-         Trace.CorrelationManager.ActivityId = new Guid();
+         Trace.CorrelationManager.ActivityId = Guid.NewGuid();
       }
       
       [DiagnosticName("System.Net.Http.HttpRequestOut.Start")]
