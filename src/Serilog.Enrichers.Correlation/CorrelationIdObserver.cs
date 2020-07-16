@@ -29,6 +29,11 @@ namespace Serilog.Enrichers.Correlation
          _subscriptions.Add(value.SubscribeWithAdapter(this));
       }
 
+      [DiagnosticName("Microsoft.AspNetCore.Hosting.HttpRequestIn")]
+      public void OnHttpRequestIn()
+      {
+      }
+
       [DiagnosticName("Microsoft.AspNetCore.Hosting.HttpRequestIn.Start")]
       public void OnHttpRequestInStart(HttpContext httpContext)
       {
